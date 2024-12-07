@@ -1,0 +1,89 @@
+name: Test, Buid
+
+# I have to reconfigure this job but I could check it work only when dependabot triggers...
+# https://github.com/dependabot/dependabot-core/issues/3253#issuecomment-852541544
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  SolutionName: ${{github.event.repository.name}}
+
+jobs:
+  test_net_windows:
+    name: Testing .NET (Windows)
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{secrets.SUBMODULE_TOKEN}}
+        submodules: true
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 7.0.x
+    - name: Restoring dependencies
+      run: dotnet restore ${{env.SolutionName}}.sln
+    - name: Testing .NET
+      run: dotnet test ${{env.SolutionName}}.sln --no-build --verbosity normal
+
+  files_exists:
+    name: Checking project existence
+    runs-on: ubuntu-latest
+    outputs:
+      net_framework_project_exists: ${{steps.net_framework.outputs.files_exists}}
+      net_project_exists: ${{steps.net.outputs.files_exists}}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{secrets.SUBMODULE_TOKEN}}
+        submodules: false
+    - name: .NET Framework project exists
+      id: net_framework
+      uses: andstor/file-existence-action@v3
+      with:
+        files: "${{github.workspace}}/${{env.SolutionName}}/${{env.SolutionName}}35.csproj"
+        ignore_case: true
+    - name: .NET project exists
+      id: net
+      uses: andstor/file-existence-action@v3
+      with:
+        files: "${{github.workspace}}/${{env.SolutionName}}/${{env.SolutionName}}.csproj"
+        ignore_case: true
+
+  build_net_framework:
+    name: Building .NET Framework assembly
+    needs: [test_net_windows,files_exists]
+    if: needs.files_exists.outputs.net_framework_project_exists == 'true'
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{secrets.SUBMODULE_TOKEN}}
+        submodules: true
+    - name: Setup .NET
+      uses: microsoft/setup-msbuild@v2
+    - name: Restoring NuGet packages
+      run: nuget restore "${{github.workspace}}\${{env.SolutionName}}.sln"
+    - name: Building .NET Framework
+      run: MSBuild -nologo -restore "${{github.workspace}}\${{env.SolutionName}}\${{env.SolutionName}}35.csproj" /property:Configuration=Release -property:SignAssembly=false -property:OutputPath="${{github.workspace}}/bin/"
+
+  build_net:
+    name: Building .NET assembly
+    needs: [test_net_windows,files_exists]
+    if: needs.files_exists.outputs.net_project_exists == 'true'
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{secrets.SUBMODULE_TOKEN}}
+        submodules: true
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 7.0.x
+    - name: Restoring dependencies
+      run: dotnet restore ${{env.SolutionName}}.sln
+    - name: Building .NET
+      run: dotnet build "${{github.workspace}}\${{env.SolutionName}}\${{env.SolutionName}}.csproj" --configuration Release --no-restore /p:OutputPath="../bin/" /p:SignAssembly=false /p:DocumentationFile="../bin/${{env.SolutionName}}.xml"

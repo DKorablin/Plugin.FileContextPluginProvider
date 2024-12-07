@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package>
+	<metadata>
+		<id>AlphaOmega.SAL.Plugin.TEMPLATENAME</id>
+		<version>0.0.0.0</version>
+		<authors>DKorablin</authors>
+		<license type="expression">Apache-1.0</license>
+		<readme>docs\README.md</readme>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<projectUrl>https://github.com/DKorablin/Plugin.TEMPLATE_PROJECT_NAME</projectUrl>
+		<repository type="git" url="https://github.com/DKorablin/Plugin.TEMPLATE_PROJECT_NAME" />
+		<description>TEMPLATE DESCRIPTION</description>
+		<releaseNotes></releaseNotes>
+		<copyright>Danila Korablin</copyright>
+		<tags>SAL,Plugin</tags>
+		<dependencies>
+			<group targetFramework="net20">
+				<dependency id="SAL.Flatbed" version="1.2.9" />
+				<dependency id="SAL.Windows" version="1.2.9" />
+			</group>
+		</dependencies>
+	</metadata>
+	<files>
+		<file src="readme.md" target="docs" />
+		<!--file src="bin\net20\Plugin.TEMPLATENAME.xml" target="xml" /-->
+		<file src="bin\net20\Plugin.TEMPLATENAME.dll" target="lib\net20" />
+	</files>
+</package>
