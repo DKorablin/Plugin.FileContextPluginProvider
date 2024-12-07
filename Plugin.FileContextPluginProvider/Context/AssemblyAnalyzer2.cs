@@ -20,7 +20,7 @@ namespace Plugin.FileContextPluginProvider.Context
 			List<ManualResetEvent> onDone = new List<ManualResetEvent>();
 			List<AssemblyTypesReader2> readers = new List<AssemblyTypesReader2>();
 			foreach(String filePath in System.IO.Directory.GetFiles(Directory.FullName, "*.*", SearchOption.AllDirectories))
-				if(new FilePluginArgs().CheckFileExtension(filePath))
+				if(FilePluginArgs.CheckFileExtension(filePath))
 				{
 					ManualResetEvent evt = new ManualResetEvent(false);
 					AssemblyTypesReader2 reader = new AssemblyTypesReader2(new String[] { filePath }, evt);
@@ -47,7 +47,7 @@ namespace Plugin.FileContextPluginProvider.Context
 		public AssemblyTypesInfo CheckAssembly()
 		{
 			AssemblyTypesInfo result = null;
-			if(new FilePluginArgs().CheckFileExtension(Directory.FullName))
+			if(FilePluginArgs.CheckFileExtension(Directory.FullName))
 				result = AssemblyTypesReader2.GetAssemblyTypes(this, Directory.FullName);
 
 			return result;

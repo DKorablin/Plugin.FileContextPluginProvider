@@ -89,7 +89,7 @@ namespace Plugin.FileContextPluginProvider
 			foreach(String pluginPath in this.Args.PluginPath)
 				if(Directory.Exists(pluginPath))
 					foreach(String file in Directory.GetFiles(pluginPath, "*.*", SearchOption.AllDirectories))
-						if(this.Args.CheckFileExtension(file))//Поиск только файлов с расширением .dll (UPD: Unify file extensions, it should work...)
+						if(FilePluginArgs.CheckFileExtension(file))//Поиск только файлов с расширением .dll (UPD: Unify file extensions, it should work...)
 							try
 							{
 								AssemblyName name = AssemblyName.GetAssemblyName(file);
