@@ -1,2 +1,2 @@
-# TEMPLATE plugin
-This is a template plugin description
+# AssemblyContext plugin provider
+Plugin loader assembly with sandbox check in a separate context
