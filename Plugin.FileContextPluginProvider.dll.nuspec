@@ -15,7 +15,7 @@
 		<tags>SAL,Plugin,PluginProvider</tags>
 		<dependencies>
 			<group targetFramework="net70">
-				<dependency id="SAL.Flatbed" version="1.2.9" />
+				<dependency id="SAL.Flatbed" version="1.2.10" />
 				<dependency id="System.Configuration.ConfigurationManager" version="7.0.0" />
 			</group>
 		</dependencies>
