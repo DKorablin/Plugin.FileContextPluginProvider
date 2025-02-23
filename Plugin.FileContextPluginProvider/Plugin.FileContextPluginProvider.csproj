@@ -4,9 +4,7 @@
 		<OutputType>Library</OutputType>
 		<RootNamespace>Plugin.FileContextPluginProvider</RootNamespace>
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-		<AssemblyTitle>Plugin.FileContextPluginProvider</AssemblyTitle>
-		<Company>Danila Korablin</Company>
-		<Product>Plugin loader assembly with sandbox check in a separate context</Product>
+		<Description>Plugin loader assembly with sandbox check in a separate context</Description>
 		<Copyright>Copyright © Danila Korablin 2023-2024</Copyright>
 		<Configuration>Debug</Configuration>
 		<AssemblyVersion>0.1.*</AssemblyVersion>
