@@ -1,5 +1,5 @@
 <Project>
-	<Target Name="BeforeBuild" Condition="'$(TargetFramework)' == 'net20'">
+	<Target Name="BeforeBuild">
 		<ItemGroup>
 			<AssemblyAttributes Include="AssemblyVersion">
 				<_Parameter1>$(Version)</_Parameter1>
