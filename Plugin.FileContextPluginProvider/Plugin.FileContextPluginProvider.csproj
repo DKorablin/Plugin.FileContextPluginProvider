@@ -24,6 +24,6 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="SAL.Flatbed" Version="1.2.10" />
-		<PackageReference Include="System.Configuration.ConfigurationManager" Version="7.0.0" />
+		<PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.3" />
 	</ItemGroup>
 </Project>
