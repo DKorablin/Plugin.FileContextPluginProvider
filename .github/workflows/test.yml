@@ -63,8 +63,6 @@ jobs:
         submodules: true
     - name: Setup .NET
       uses: microsoft/setup-msbuild@v2
-    - name: Adding source to GitHub NuGet
-      run: dotnet nuget add source --username DKorablin --password ${{secrets.GITHUB_TOKEN}} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/DKorablin/index.json"
     - name: Restoring NuGet packages
       run: nuget restore "${{github.workspace}}\${{env.SolutionName}}.sln"
     - name: Building .NET Framework
@@ -84,8 +82,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 7.0.x
-    - name: Adding source to GitHub NuGet
-      run: dotnet nuget add source --username DKorablin --password ${{secrets.GITHUB_TOKEN}} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/DKorablin/index.json"
     - name: Restoring dependencies
       run: dotnet restore ${{env.SolutionName}}.sln
     - name: Building .NET
