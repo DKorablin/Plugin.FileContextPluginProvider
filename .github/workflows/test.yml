@@ -1,11 +1,9 @@
 name: Test, Buid
 
-# I have to reconfigure this job but I could check it work only when dependabot triggers...
-# https://github.com/dependabot/dependabot-core/issues/3253#issuecomment-852541544
-
 on:
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
 
 env:
   SolutionName: ${{github.event.repository.name}}
