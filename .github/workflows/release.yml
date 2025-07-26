@@ -211,10 +211,9 @@ jobs:
       - version
       - build_net_framework
       - build_net
+      - deploy_release
     if: |
-      always() &&
-      needs.build_net_framework.result != 'success' &&
-      needs.build_net.result != 'success'
+      always() && (needs.deploy_release.result != 'success' || needs.deploy_nuget.result != 'success')
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -224,4 +223,6 @@ jobs:
         fetch-depth: 0 #Fetch all history for all tags and branches
     - name: Removing version tag
       run: |
-        git push --delete origin ${{needs.version.outputs.new_tag}}
+        git tag -d ${{needs.version.outputs.new_tag}}
+
+        git push origin :refs/tags/"${{needs.version.outputs.new_tag}}"
