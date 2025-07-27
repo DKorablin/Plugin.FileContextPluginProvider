@@ -211,9 +211,10 @@ jobs:
       - version
       - build_net_framework
       - build_net
-      - deploy_release
     if: |
-      always() && (needs.deploy_release.result != 'success' || needs.deploy_nuget.result != 'success')
+      always() &&
+      needs.build_net_framework.result != 'success' &&
+      needs.build_net.result != 'success'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
