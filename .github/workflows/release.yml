@@ -1,3 +1,20 @@
+# This GitHub Actions workflow automates the entire CI/CD process for a .NET solution
+# that contains both a .NET Framework and .NET projects.
+#
+# Workflow Steps:
+# 1. Test: Runs unit tests for the solution.
+# 2. Version: Automatically increments the version number and creates a new git tag.
+# 3. Detect & Build: Detects the project types by using Target Framework from csproj files (.NET Framework vs .NET)
+#    and builds them separately using the appropriate tools (MSBuild or dotnet CLI).
+# 4. Deploy Release:
+#    - Moved release asset into Plugin folder to separate SAL Host and release assets.
+#    - Downloads latest release assets from a corresponding "Flatbed.Dialog.Lite" version repository.
+#    - Merges the downloaded assets into the build output.
+#    - Creates two separate zip archives for each framework type.
+#    - Publishes a single GitHub Release containing both zip files.
+# 5. Deploy NuGet: Publishes a NuGet package to GitHub Packages.
+# 6. Cleanup: If any build or deploy step fails, it automatically removes the created git tag.
+
 name: Test, Buid, Release
 
 on:
@@ -106,7 +123,7 @@ jobs:
 
   build_net_framework:
     name: Building .NET Framework assembly
-    needs: [version,detect_frameworks]
+    needs: [version, detect_frameworks]
     if: needs.detect_frameworks.outputs.net_framework_project_exists == 'true'
     runs-on: windows-latest
     steps:
@@ -153,7 +170,7 @@ jobs:
 
   build_net:
     name: Building .NET assembly
-    needs: [version,detect_frameworks]
+    needs: [version, detect_frameworks]
     if: needs.detect_frameworks.outputs.net_project_exists == 'true'
     runs-on: windows-latest
     steps:
@@ -184,7 +201,6 @@ jobs:
       run: dotnet restore ${{env.SolutionName}}.sln
     - name: Building .NET
       run: dotnet build ${{needs.detect_frameworks.outputs.net_project_path}} --configuration Release --no-restore /p:OutputPath="${{github.workspace}}/bin" /p:DocumentationFile="${{github.workspace}}/bin/${{env.SolutionName}}.xml" /p:SignAssembly=true /p:Version=${{needs.version.outputs.new_version}} /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
-    #TODO: I need to find a better approach to sign output files without explicitly specify filename and extension
     - name: Signing portable executables
       uses: dlemstra/code-sign-action@v1
       with:
@@ -192,6 +208,7 @@ jobs:
         password: '${{secrets.SIGN_PE_PASSWORD}}'
         recursive: false
         files: |
+          # Applying PE certificate to the result PE file (We can't add certificate to all PE files because there could be many assemblies from NuGet packages)
           ${{github.workspace}}\bin\${{env.SolutionName}}.dll
     - name: Deploying artifacts
       uses: actions/upload-artifact@v4
@@ -202,10 +219,7 @@ jobs:
 
   deploy_release:
     name: Deploying release
-    needs:
-      - version
-      - build_net_framework
-      - build_net
+    needs: [version, detect_frameworks, build_net_framework, build_net]
     if: |
         always() &&
         (needs.build_net_framework.result == 'skipped' || needs.build_net_framework.result == 'success') &&
@@ -216,49 +230,65 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: bin
-    - name: Download and Merge Flatbed.Dialog.Lite Version
-      # Fetching the latest release from the SAL host repository and merges it with current plugin release.
+    - name: Organize Artifacts into Plugin subfolders
+      # This step creates a "Plugin" folder inside each artifact directory and moves all content into it.
       run: |
         cd ${{github.workspace}}/bin
-        # Get the latest release tag from the target repository
-        LATEST_VERSION=$(curl -s -H "Authorization: token ${{secrets.DEPLOYMENT_TOKEN}}" "https://api.github.com/repos/DKorablin/Flatbed.Dialog.Lite/releases/latest" | jq -r .tag_name)
-        
-        if [ "$LATEST_VERSION" = "null" ] || [ -z "$LATEST_VERSION" ]; then
-          echo "Could not find the latest release for DKorablin/Flatbed.Dialog.Lite. Skipping merge."
-          exit 0
-        fi
-        echo "Latest Flatbed.Dialog.Lite version is $LATEST_VERSION"
-
-        # Downloading all expected assets for specific folders
         for dir in */; do
           dir_name="${dir%/}"
-
-          # Conditionally set the framework name for the asset because Flatbed application was built on specific versions
-          if [[ $dir_name == v* ]]; then
-            asset_framework_name="v3.5"
-          else
-            asset_framework_name="net8.0-windows"
-          fi
-
-          # Construct the expected asset name
-          ASSET_NAME="Flatbed.Dialog.Lite_${LATEST_VERSION}_${dir_name}.zip"
-          DOWNLOAD_URL="https://github.com/DKorablin/Flatbed.Dialog.Lite/releases/download/${LATEST_VERSION}/${ASSET_NAME}"
-
-          echo "Checking for asset $ASSET_NAME"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L -H "Authorization: token ${{ secrets.DEPLOYMENT_TOKEN }}" "$DOWNLOAD_URL")
-          
-          if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "Downloading asset..."
-            curl -s -L -H "Authorization: token ${{ secrets.DEPLOYMENT_TOKEN }}" -H "Accept: application/octet-stream" -o "${ASSET_NAME}" "$DOWNLOAD_URL"
-            echo "Successfully downloaded. Extracting to $dir_name"
-            unzip -o "${ASSET_NAME}" -d "$dir_name"
-            rm "${ASSET_NAME}"
-          else
-            echo "Warning: Could not download asset ${ASSET_NAME}. HTTP status: $HTTP_STATUS. It may not exist for this .NET version."
-          fi
+          mkdir "$dir_name/Plugin"
+          # Use a subshell and a for loop for a more compatible way to move files.
+          (
+            cd "$dir_name"
+            shopt -s dotglob
+            for item in *; do
+              if [[ "$item" != "Plugin" ]]; then
+                mv -- "$item" "Plugin/"
+              fi
+            done
+          )
         done
+    # This step query the latest version of SAL Flatbed application to store executable files inside current release
+    - name: Get latest Flatbed.Dialog.Lite release version
+      id: get_flatbed_release
+      run: |
+        LATEST_VERSION=$(curl -s -H "Authorization: token ${{ secrets.DEPLOYMENT_TOKEN }}" "https://api.github.com/repos/DKorablin/Flatbed.Dialog.Lite/releases/latest" | jq -r .tag_name)
+        if [ "$LATEST_VERSION" = "null" ] || [ -z "$LATEST_VERSION" ]; then
+          echo "Error: Could not find the latest release for DKorablin/Flatbed.Dialog.Lite."
+          exit 1
+        else
+          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+        fi
+    # Downloading latest SAL executables for .NET Framework
+    - name: Download .NET Framework Flatbed.Dialog.Lite Version
+      if: needs.build_net_framework.result == 'success'
+      uses: dsaltares/fetch-gh-release-asset@master
+      with:
+        repo: DKorablin/Flatbed.Dialog.Lite
+        file: Flatbed.Dialog.Lite_${{ steps.get_flatbed_release.outputs.latest_version }}_v3.5.zip
+        target: "${{github.workspace}}/flatbed_framework.zip"
+        token: ${{ secrets.DEPLOYMENT_TOKEN }}
+    # After that we need to extract all files related to SAL executable into bin folder for specific build
+    - name: Extract .NET Framework Flatbed.Dialog.Lite Version
+      if: needs.build_net_framework.result == 'success'
+      run: unzip -o "${{github.workspace}}/flatbed_framework.zip" -d "bin/${{ needs.detect_frameworks.outputs.net_framework_version }}"
+    # Downloading latest SAL executables for .NET
+    - name: Download .NET Flatbed.Dialog.Lite Version
+      if: needs.build_net.result == 'success'
+      uses: dsaltares/fetch-gh-release-asset@master
+      with:
+        repo: DKorablin/Flatbed.Dialog.Lite
+        file: Flatbed.Dialog.Lite_${{ steps.get_flatbed_release.outputs.latest_version }}_net8.0-windows.zip
+        target: "${{github.workspace}}/flatbed_net.zip"
+        token: ${{ secrets.DEPLOYMENT_TOKEN }}
+    # After that we need to extract all files related to SAL executable into bin folder for specific build
+    - name: Extract .NET Lite Version
+      if: needs.build_net.result == 'success'
+      run: unzip -o "${{github.workspace}}/flatbed_net.zip" -d "bin/${{ needs.detect_frameworks.outputs.net_version }}"
+    # After SAL executables are also packed inside bin folder we need to pack all of them into separate release assets
     - name: Zipping individual artifacts
       run: |
+        # Packing each subdirectory into different release asset
         cd ${{github.workspace}}/bin
         for dir in */; do
           dir_name="${dir%/}"
@@ -268,6 +298,7 @@ jobs:
     - name: Deploying GitHub release
       uses: ncipollo/release-action@v1
       with:
+        # Creating deployment release with from all packed zip files
         artifacts: ${{github.workspace}}/bin/*.zip
         tag: ${{needs.version.outputs.new_tag}}
         name: Auto ${{needs.version.outputs.new_tag}}
@@ -278,16 +309,12 @@ jobs:
 
   deploy_nuget:
     name: Deploying NuGet package
-    needs:
-        - version
-        - build_net_framework
-        - build_net
+    needs: [version, build_net_framework, build_net]
     if: |
         always() &&
         (needs.build_net_framework.result == 'skipped' || needs.build_net_framework.result == 'success') &&
         (needs.build_net.result == 'skipped' || needs.build_net.result == 'success')
     runs-on: windows-latest
-
     steps:
     - name: Checkout nessesary files from repository
       uses: actions/checkout@v4
@@ -308,10 +335,7 @@ jobs:
   failure_cleanup:
   #error: tag '${{needs.version.outputs.new_tag}}' not found.
     name: Remove version tag on failure
-    needs:
-      - version
-      - build_net_framework
-      - build_net
+    needs: [version, build_net_framework, build_net]
     if: |
       always() &&
       needs.build_net_framework.result != 'success' &&
