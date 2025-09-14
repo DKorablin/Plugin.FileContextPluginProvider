@@ -24,7 +24,7 @@ on:
 
 env:
   SolutionName: ${{github.event.repository.name}}
-  NuGetPackageSourceCredentials_github_DKorablin: Username=${{github.actor}};Password=${{secrets.GITHUB_TOKEN}}
+  NuGetPackageSourceCredentials_github_DKorablin: Username=${{github.actor}};Password=${{secrets.DEPLOYMENT_TOKEN}}
   DotNetVersion: 8.0.x
 
 jobs:
