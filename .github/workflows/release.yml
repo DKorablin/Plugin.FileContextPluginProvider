@@ -91,6 +91,10 @@ jobs:
         /p:SignAssembly=true
         /p:Version=${{needs.version.outputs.new_version}}
         /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
+    - name: Listing release directory
+      run: |
+        echo "Listing files in the release directory:"
+        ls ${{env.ArtifactsDir}} -Recurse
     - name: Finding portable executables to sign
       id: find_binaries
       run: |
@@ -122,19 +126,11 @@ jobs:
         /p:SymbolPackageFormat=snupkg
     - name: Deploying package to GitHub
       run: dotnet nuget push ${{github.workspace}}\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
-    # This step query the latest version of executable repository to store files inside current release
-    - name: Get latest Flatbed.Dialog.Lite release version
-      id: get_flatbed_release
+    - name: Package Release Artifacts
       run: |
-        .\.github\scripts\Download-ReleaseAssets.ps1 `
-            -GitHubToken ${{secrets.DEPLOYMENT_TOKEN}} `
-            -BinDirectory "${{env.ArtifactsDir}}"
-    # After that we need to extract all files related to executable into bin folder for specific build
-    - name: Extract Dependencies and Zip Release Artifacts
-      run: |
-        .\.github\scripts\Files-OrganizeRelease.ps1 `
-          -BinDirectory "${{env.ArtifactsDir}}" `
-          -DependencyVersion "${{steps.get_flatbed_release.outputs.latest_version}}" `
+        .\.github\scripts\Build-ReleasePackage.ps1 `
+          -GitHubToken "${{secrets.DEPLOYMENT_TOKEN}}" `
+          -BinDirectory "${{github.workspace}}\bin" `
           -SolutionName "${{env.SolutionName}}" `
           -ReleaseVersion "${{needs.version.outputs.new_version}}"
     - name: Publish GitHub Release
