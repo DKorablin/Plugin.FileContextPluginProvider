@@ -1,62 +1,48 @@
-# This GitHub Actions workflow automates the entire CI/CD process for a .NET solution
-# that contains both a .NET Framework and .NET projects.
+# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
 #
 # Workflow Steps:
-# 1. Test: Runs unit tests for the solution.
-# 2. Version: Automatically increments the version number and creates a new git tag.
-# 3. Detect & Build: Detects the project types by using Target Framework from csproj files (.NET Framework vs .NET)
-#    and builds them separately using the appropriate tools (MSBuild or dotnet CLI).
-# 4. Deploy Release:
-#    - Moved release asset into Plugin folder to separate SAL Host and release assets.
-#    - Downloads latest release assets from a corresponding "Flatbed.Dialog.Lite" version repository.
-#    - Merges the downloaded assets into the build output.
-#    - Creates two separate zip archives for each framework type.
-#    - Publishes a single GitHub Release containing both zip files.
-# 5. Deploy NuGet: Publishes a NuGet package to GitHub Packages.
-# 6. Cleanup: If any build or deploy step fails, it automatically removes the created git tag.
+# 1. Test: Runs all unit tests for the solution.
+# 2. Version: Automatically increments the version number based on commit history and creates a new Git tag.
+# 3. Build, Package, and Release: This is a multi-stage job that performs the following:
+#    - Builds the multi-targeted project for all target frameworks.
+#    - Signs the output assemblies.
+#    - Creates and publishes a NuGet package to GitHub Packages.
+#    - Organizes build artifacts into a 'Plugin' subfolder structure.
+#    - Calls an external PowerShell script to download required release assets from the 'Flatbed.Dialog.Lite' repository,
+#      matching only the frameworks that were just built.
+#    - Organize build artifacts, injects dependencies, and creates the final zipped release archives for each target framework.
+#    - Publishes a single, comprehensive GitHub Release with all generated .zip files as artifacts.
+# 4. Cleanup: If any part of the build or release process fails, a final job runs to remove the Git tag that was created.
 
-name: Test, Buid, Release
+name: Build, Release
 
 on:
   push:
     branches: [ "master" ]
   workflow_dispatch:
+    inputs:
+      dotNetVersion:
+        description: 'Determine the version of .NET used to configure the environment'
+        required: false
+        default: '8.0.x'
+      newVersion:
+        description: 'Optionally specify a new version number (overrides automatic versioning)'
+        required: false
+        default: ''
 
 env:
   SolutionName: ${{github.event.repository.name}}
   NuGetPackageSourceCredentials_github_DKorablin: Username=${{github.actor}};Password=${{secrets.DEPLOYMENT_TOKEN}}
-  DotNetVersion: 8.0.x
+  DotNetVersion: ${{github.event.inputs.dotNetVersion || '8.0.x'}}
+  ArtifactsDir: ${{github.workspace}}\bin
+
+defaults:
+  run:
+    shell: pwsh
 
 jobs:
-  test_net_windows:
-    name: Testing .NET (Windows)
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        token: ${{secrets.SUBMODULE_TOKEN}}
-        submodules: true
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{env.DotNetVersion}}
-    - name: Cache NuGet packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.nuget/packages
-        # Create a new cache when packages.lock.json changes
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-        # If the exact key doesn't exist, use the most recent cache for this OS
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-    - name: Restoring dependencies
-      run: dotnet restore ${{env.SolutionName}}.sln
-    - name: Testing .NET
-      run: dotnet test ${{env.SolutionName}}.sln --no-build --verbosity normal
-
   version:
     name: Incrementing version number
-    needs: [test_net_windows]
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{steps.tag_version.outputs.new_version}}
@@ -68,113 +54,14 @@ jobs:
       uses: mathieudutour/github-tag-action@v6.2
       with:
         github_token: ${{secrets.GITHUB_TOKEN}}
-        #custom_tag: 1.0.0
-
-  detect_frameworks:
-    name: Detecting project frameworks
-    needs: [version]
-    runs-on: ubuntu-latest
-    outputs:
-      net_framework_project_exists: ${{ steps.detect.outputs.net_framework_project_exists }}
-      net_framework_project_path: ${{ steps.detect.outputs.net_framework_project_path }}
-      net_framework_version: ${{ steps.detect.outputs.net_framework_version }}
-      net_project_exists: ${{ steps.detect.outputs.net_project_exists }}
-      net_project_path: ${{ steps.detect.outputs.net_project_path }}
-      net_version: ${{ steps.detect.outputs.net_version }}
-    steps:
-    - uses: actions/checkout@v4
-    - name: Detect project types
-      id: detect
-      run: |
-        NET_FRAMEWORK_FOUND=false
-        NET_FOUND=false
-        NET_PROJECT_PATH=""
-        NET_FRAMEWORK_PROJECT_PATH=""
-        NET_VERSION=""
-        NET_FRAMEWORK_VERSION=""
-        while IFS= read -r -d '' csproj; do
-          # Check for .NET Framework and capture the path and version
-          if [ -z "$NET_FRAMEWORK_PROJECT_PATH" ]; then
-            # This will find the first occurrence of a .NET Framework TargetFrameworkVersion and extract it
-            FW_VERSION=$(grep -o -E '<TargetFrameworkVersion>v[0-9]+\.[0-9]+</TargetFrameworkVersion>' "$csproj" | head -n 1 | sed -e 's/<\/\?TargetFrameworkVersion>//g')
-            if [ ! -z "$FW_VERSION" ]; then
-              NET_FRAMEWORK_FOUND=true
-              NET_FRAMEWORK_PROJECT_PATH=$csproj
-              NET_FRAMEWORK_VERSION=$FW_VERSION
-            fi
-          fi
-          # Check for .NET and capture the path and version
-          if [ -z "$NET_PROJECT_PATH" ]; then
-            # This will find the first occurrence of a .NET TargetFramework and extract it
-            DOTNET_VERSION=$(grep -o -E '<TargetFramework>net[0-9]+\.[0-9]+.*</TargetFramework>' "$csproj" | head -n 1 | sed -e 's/<\/\?TargetFramework>//g')
-            if [ ! -z "$DOTNET_VERSION" ]; then
-              NET_FOUND=true
-              NET_PROJECT_PATH=$csproj
-              NET_VERSION=$DOTNET_VERSION
-            fi
-          fi
-        done < <(find . -name "*.csproj" -print0)
-        echo "net_framework_project_exists=$NET_FRAMEWORK_FOUND" >> $GITHUB_OUTPUT
-        echo "net_framework_project_path=$NET_FRAMEWORK_PROJECT_PATH" >> $GITHUB_OUTPUT
-        echo "net_framework_version=$NET_FRAMEWORK_VERSION" >> $GITHUB_OUTPUT
-        echo "net_project_exists=$NET_FOUND" >> $GITHUB_OUTPUT
-        echo "net_project_path=$NET_PROJECT_PATH" >> $GITHUB_OUTPUT
-        echo "net_version=$NET_VERSION" >> $GITHUB_OUTPUT
-
-  build_net_framework:
-    name: Building .NET Framework assembly
-    needs: [version, detect_frameworks]
-    if: needs.detect_frameworks.outputs.net_framework_project_exists == 'true'
-    runs-on: windows-latest
-    steps:
-    - name: Decoding SNK
-      id: sign_key_file
-      uses: timheuer/base64-to-file@v1.2
-      with:
-        fileName: 'Signature.snk'
-        encodedString: ${{secrets.SIGN_ASM_KEY}}
-    - uses: actions/checkout@v4
-      with:
-        token: ${{secrets.SUBMODULE_TOKEN}}
-        submodules: true
-    - name: Setup .NET
-      uses: microsoft/setup-msbuild@v2
-    - name: Cache NuGet packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.nuget/packages
-        # Create a new cache when packages.lock.json changes
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-        # If the exact key doesn't exist, use the most recent cache for this OS
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-    - name: Restoring NuGet packages
-      run: nuget restore "${{github.workspace}}\${{env.SolutionName}}.sln"
-    - name: Building .NET Framework
-      run: MSBuild -nologo -restore "${{github.workspace}}\${{needs.detect_frameworks.outputs.net_framework_project_path}}" -property:Configuration=Release -property:OutputPath="${{github.workspace}}/bin" -property:Version=${{needs.version.outputs.new_version}} -property:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
-    #TODO: I need to find a better approach to sign output files without explicitly specify filename and extension
-    - name: Signing portable executables
-      uses: dlemstra/code-sign-action@v1
-      with:
-        certificate: '${{secrets.SIGN_PE_CERTIFICATE}}'
-        password: '${{secrets.SIGN_PE_PASSWORD}}'
-        recursive: false
-        files: |
-          ${{github.workspace}}\bin\${{env.SolutionName}}.dll
-    - name: Deploying artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{needs.detect_frameworks.outputs.net_framework_version}}
-        path: ${{github.workspace}}/bin/*
-        if-no-files-found: error
+        custom_tag: ${{github.event.inputs.newVersion}}
 
   build_net:
-    name: Building .NET assembly
-    needs: [version, detect_frameworks]
-    if: needs.detect_frameworks.outputs.net_project_exists == 'true'
+    name: Build
+    needs: [version]
     runs-on: windows-latest
     steps:
-    - name: Decoding SNK
+    - name: Decoding strong-name key
       id: sign_key_file
       uses: timheuer/base64-to-file@v1.2
       with:
@@ -184,162 +71,86 @@ jobs:
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{env.DotNetVersion}}
-    - name: Cache NuGet packages
+    - name: Caching NuGet packages
       uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
-        # Create a new cache when packages.lock.json changes
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-        # If the exact key doesn't exist, use the most recent cache for this OS
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
-    - name: Restoring dependencies
-      run: dotnet restore ${{env.SolutionName}}.sln
-    - name: Building .NET
-      run: dotnet build ${{needs.detect_frameworks.outputs.net_project_path}} --configuration Release --no-restore /p:OutputPath="${{github.workspace}}/bin" /p:DocumentationFile="${{github.workspace}}/bin/${{env.SolutionName}}.xml" /p:SignAssembly=true /p:Version=${{needs.version.outputs.new_version}} /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+    - name: Restore
+      run: msbuild ${{env.SolutionName}}.sln /t:Restore
+    - name: Build multi-target project
+      run: >
+        msbuild ${{env.SolutionName}}.sln
+        /p:Configuration=Release
+        /p:ArtifactsDir="${{env.ArtifactsDir}}"
+        /p:GenerateDocumentationFile=true
+        /p:SignAssembly=true
+        /p:Version=${{needs.version.outputs.new_version}}
+        /p:AssemblyOriginatorKeyFile="${{steps.sign_key_file.outputs.filePath}}"
+    - name: Finding portable executables to sign
+      id: find_binaries
+      run: |
+        $filePaths = Get-ChildItem -Path "${{env.ArtifactsDir}}" -Recurse -Include "${{env.SolutionName}}.dll" | ForEach-Object { $_.FullName }
+        $multiLineString = $filePaths -join "`n"
+
+        echo "Found files to sign:"
+        echo $multiLineString
+
+        echo "files_to_sign<<EOF" >> $env:GITHUB_OUTPUT
+        echo $multiLineString >> $env:GITHUB_OUTPUT
+        echo "EOF" >> $env:GITHUB_OUTPUT
     - name: Signing portable executables
       uses: dlemstra/code-sign-action@v1
       with:
         certificate: '${{secrets.SIGN_PE_CERTIFICATE}}'
         password: '${{secrets.SIGN_PE_PASSWORD}}'
         recursive: false
-        files: |
-          # Applying PE certificate to the result PE file (We can't add certificate to all PE files because there could be many assemblies from NuGet packages)
-          ${{github.workspace}}\bin\${{env.SolutionName}}.dll
-    - name: Deploying artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{needs.detect_frameworks.outputs.net_version}}
-        path: ${{github.workspace}}/bin/*
-        if-no-files-found: error
-
-  deploy_release:
-    name: Deploying release
-    needs: [version, detect_frameworks, build_net_framework, build_net]
-    if: |
-        always() &&
-        (needs.build_net_framework.result == 'skipped' || needs.build_net_framework.result == 'success') &&
-        (needs.build_net.result == 'skipped' || needs.build_net.result == 'success')
-    runs-on: ubuntu-latest
-    steps:
-    - name: Extracting all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: bin
-    - name: Organize Artifacts into Plugin subfolders
-      # This step creates a "Plugin" folder inside each artifact directory and moves all content into it.
-      run: |
-        cd ${{github.workspace}}/bin
-        for dir in */; do
-          dir_name="${dir%/}"
-          mkdir "$dir_name/Plugin"
-          # Use a subshell and a for loop for a more compatible way to move files.
-          (
-            cd "$dir_name"
-            shopt -s dotglob
-            for item in *; do
-              if [[ "$item" != "Plugin" ]]; then
-                mv -- "$item" "Plugin/"
-              fi
-            done
-          )
-        done
-    # This step query the latest version of SAL Flatbed application to store executable files inside current release
+        files: ${{steps.find_binaries.outputs.files_to_sign}}
+    - name: Creating NuGet package
+      run: >
+        dotnet pack ${{env.SolutionName}}.sln --no-build --no-restore -o ${{github.workspace}}\nupkg
+        /p:ArtifactsDir="${{env.ArtifactsDir}}"
+        /p:PackageVersion=${{needs.version.outputs.new_version}}
+        /p:IncludeSymbols=true
+        /p:DebugType=Portable
+        /p:EmbedUntrackedSources=true
+        /p:PublishRepositoryUrl=true
+        /p:SymbolPackageFormat=snupkg
+    - name: Deploying package to GitHub
+      run: dotnet nuget push ${{github.workspace}}\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
+    # This step query the latest version of executable repository to store files inside current release
     - name: Get latest Flatbed.Dialog.Lite release version
       id: get_flatbed_release
       run: |
-        LATEST_VERSION=$(curl -s -H "Authorization: token ${{ secrets.DEPLOYMENT_TOKEN }}" "https://api.github.com/repos/DKorablin/Flatbed.Dialog.Lite/releases/latest" | jq -r .tag_name)
-        if [ "$LATEST_VERSION" = "null" ] || [ -z "$LATEST_VERSION" ]; then
-          echo "Error: Could not find the latest release for DKorablin/Flatbed.Dialog.Lite."
-          exit 1
-        else
-          echo "latest_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-        fi
-    # Downloading latest SAL executables for .NET Framework
-    - name: Download .NET Framework Flatbed.Dialog.Lite Version
-      if: needs.build_net_framework.result == 'success'
-      uses: dsaltares/fetch-gh-release-asset@master
-      with:
-        repo: DKorablin/Flatbed.Dialog.Lite
-        file: Flatbed.Dialog.Lite_${{ steps.get_flatbed_release.outputs.latest_version }}_v3.5.zip
-        target: "${{github.workspace}}/flatbed_framework.zip"
-        token: ${{ secrets.DEPLOYMENT_TOKEN }}
-    # After that we need to extract all files related to SAL executable into bin folder for specific build
-    - name: Extract .NET Framework Flatbed.Dialog.Lite Version
-      if: needs.build_net_framework.result == 'success'
-      run: unzip -o "${{github.workspace}}/flatbed_framework.zip" -d "bin/${{ needs.detect_frameworks.outputs.net_framework_version }}"
-    # Downloading latest SAL executables for .NET
-    - name: Download .NET Flatbed.Dialog.Lite Version
-      if: needs.build_net.result == 'success'
-      uses: dsaltares/fetch-gh-release-asset@master
-      with:
-        repo: DKorablin/Flatbed.Dialog.Lite
-        file: Flatbed.Dialog.Lite_${{ steps.get_flatbed_release.outputs.latest_version }}_net8.0-windows.zip
-        target: "${{github.workspace}}/flatbed_net.zip"
-        token: ${{ secrets.DEPLOYMENT_TOKEN }}
-    # After that we need to extract all files related to SAL executable into bin folder for specific build
-    - name: Extract .NET Lite Version
-      if: needs.build_net.result == 'success'
-      run: unzip -o "${{github.workspace}}/flatbed_net.zip" -d "bin/${{ needs.detect_frameworks.outputs.net_version }}"
-    # After SAL executables are also packed inside bin folder we need to pack all of them into separate release assets
-    - name: Zipping individual artifacts
+        .\.github\scripts\Download-ReleaseAssets.ps1 `
+            -GitHubToken ${{secrets.DEPLOYMENT_TOKEN}} `
+            -BinDirectory "${{env.ArtifactsDir}}"
+    # After that we need to extract all files related to executable into bin folder for specific build
+    - name: Extract Dependencies and Zip Release Artifacts
       run: |
-        # Packing each subdirectory into different release asset
-        cd ${{github.workspace}}/bin
-        for dir in */; do
-          dir_name="${dir%/}"
-          (cd "$dir_name" && zip -qq -r "../${{env.SolutionName}}_v${{needs.version.outputs.new_version}}_${dir_name}.zip" .)
-        done
-      working-directory: ${{github.workspace}}/bin
-    - name: Deploying GitHub release
+        .\.github\scripts\Files-OrganizeRelease.ps1 `
+          -BinDirectory "${{env.ArtifactsDir}}" `
+          -DependencyVersion "${{steps.get_flatbed_release.outputs.latest_version}}" `
+          -SolutionName "${{env.SolutionName}}" `
+          -ReleaseVersion "${{needs.version.outputs.new_version}}"
+    - name: Publish GitHub Release
       uses: ncipollo/release-action@v1
       with:
-        # Creating deployment release with from all packed zip files
-        artifacts: ${{github.workspace}}/bin/*.zip
+        artifacts: ${{env.ArtifactsDir}}\*.zip
         tag: ${{needs.version.outputs.new_tag}}
         name: Auto ${{needs.version.outputs.new_tag}}
         body: ${{needs.version.outputs.changelog}}
         artifactErrorsFailBuild: true
         generateReleaseNotes: true
-        token: ${{secrets.DEPLOYMENT_TOKEN}}
-
-  deploy_nuget:
-    name: Deploying NuGet package
-    needs: [version, build_net_framework, build_net]
-    if: |
-        always() &&
-        (needs.build_net_framework.result == 'skipped' || needs.build_net_framework.result == 'success') &&
-        (needs.build_net.result == 'skipped' || needs.build_net.result == 'success')
-    runs-on: windows-latest
-    steps:
-    - name: Checkout nessesary files from repository
-      uses: actions/checkout@v4
-      with:
-        sparse-checkout: |
-          README.md
-          ${{env.SolutionName}}.dll.nuspec
-        sparse-checkout-cone-mode: false
-    - name: Extracting all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: bin
-    - name: Packing artifacts
-      run: nuget pack ${{env.SolutionName}}.dll.nuspec -Version ${{needs.version.outputs.new_version}} -OutputDirectory nupkg
-    - name: Deploying GitHub package
-      run: dotnet nuget push nupkg\*.nupkg --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
 
   failure_cleanup:
-  #error: tag '${{needs.version.outputs.new_tag}}' not found.
-    name: Remove version tag on failure
-    needs: [version, build_net_framework, build_net]
-    if: |
-      always() &&
-      needs.build_net_framework.result != 'success' &&
-      needs.build_net.result != 'success'
+    name: Cleanup Tag On Failure
+    needs: [version, build_net]
+    if: always() && needs.build_net.result != 'success'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -349,5 +160,5 @@ jobs:
         fetch-depth: 0 #Fetch all history for all tags and branches
     - name: Removing version tag
       run: |
-        git tag -d ${{needs.version.outputs.new_tag}}
-        git push origin :refs/tags/"${{needs.version.outputs.new_tag}}"
+        git tag -d ${{needs.version.outputs.new_tag}} || true
+        git push origin :refs/tags/${{needs.version.outputs.new_tag}} || true
