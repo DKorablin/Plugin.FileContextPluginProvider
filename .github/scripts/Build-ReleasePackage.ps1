@@ -54,7 +54,7 @@ foreach ($dir in $frameworkDirs) {
 
     # --- Step B: Download and Extract the Correct Dependency Asset ---
     $assetFrameworkToDownload = $frameworkName
-    if ($frameworkName -eq 'netstandard2.0' -or $frameworkName -eq 'netstandard2.1') {
+    if ($frameworkName -eq 'netstandard2.0' -or $frameworkName -eq 'netstandard2.1' -or $frameworkName -eq 'net8.0') {
         $assetFrameworkToDownload = 'net8.0-windows'
         Write-Host "Redirecting asset search from '$frameworkName' to '$assetFrameworkToDownload'."
     }
