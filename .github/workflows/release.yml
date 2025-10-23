@@ -75,7 +75,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('/Directory.Packages.props', '/nuget.config') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
     - name: Setup MSBuild
@@ -123,6 +123,7 @@ jobs:
         /p:DebugType=Portable
         /p:EmbedUntrackedSources=true
         /p:PublishRepositoryUrl=true
+        /p:EnablePackageValidation=true
         /p:SymbolPackageFormat=snupkg
     - name: Deploying package to GitHub
       run: dotnet nuget push ${{github.workspace}}\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
