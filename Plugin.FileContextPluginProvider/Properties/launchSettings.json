@@ -1,10 +1,16 @@
 {
-  "profiles": {
-    "Flatbed.Dialog": {
-      "commandName": "Executable",
-      "executablePath": "C:\\Visual Studio Projects\\C#\\SAL\\Flatbed.Dialog\\Flatbed.Dialog\\bin\\Release\\net7.0-windows\\Flatbed.Dialog.exe",
-      "commandLineArgs": "\"/SAL_Path:C:\\Visual Studio Projects\\C#\\SAL\\Plugins\\bin\"",
-      "workingDirectory": "C:\\Visual Studio Projects\\C#\\SAL\\Flatbed.Dialog\\Flatbed.Dialog\\bin\\Release\\net7.0-windows"
-    }
-  }
+	"profiles": {
+		"Flatbed.MDI net35": {
+			"commandName": "Executable",
+			"executablePath": "C:\\Visual Studio Projects\\C#\\SAL\\bin\\Flatbed.MDI\\net35\\Flatbed.MDI.exe",
+			"commandLineArgs": "\"/SAL_Path:C:\\Visual Studio Projects\\C#\\SAL\\Plugins\\bin\"",
+			"workingDirectory": "C:\\Visual Studio Projects\\C#\\SAL\\bin\\Flatbed.MDI\\net35"
+		},
+		"Flatbed.MDI net80": {
+			"commandName": "Executable",
+			"executablePath": "C:\\Visual Studio Projects\\C#\\SAL\\bin\\Flatbed.MDI\\net8.0-windows\\Flatbed.MDI.exe",
+			"commandLineArgs": "\"/SAL_Path:C:\\Visual Studio Projects\\C#\\SAL\\Plugins\\bin\"",
+			"workingDirectory": "C:\\Visual Studio Projects\\C#\\SAL\\bin\\Flatbed.MDI\\net8.0-windows"
+		}
+	}
 }

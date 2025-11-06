@@ -30,11 +30,8 @@ namespace Plugin.FileContextPluginProvider
 		public Plugin(IHost host)
 			=> this.Host = host ?? throw new ArgumentNullException(nameof(host));
 
-		#region IPlugin
 		Boolean IPlugin.OnConnection(ConnectMode mode)
-		{
-			return true;
-		}
+			=> true;
 
 		Boolean IPlugin.OnDisconnection(DisconnectMode mode)
 		{
@@ -51,9 +48,7 @@ namespace Plugin.FileContextPluginProvider
 				return true;
 			}
 		}
-		#endregion IPlugin
 
-		#region IPluginProvider
 		void IPluginProvider.LoadPlugins()
 		{
 			//System.Diagnostics.Debugger.Launch();
@@ -88,14 +83,14 @@ namespace Plugin.FileContextPluginProvider
 			AssemblyName targetName = new AssemblyName(assemblyName);
 			foreach(String pluginPath in this.Args.PluginPath)
 				if(Directory.Exists(pluginPath))
-					foreach(String file in Directory.GetFiles(pluginPath, "*.*", SearchOption.AllDirectories))
-						if(FilePluginArgs.CheckFileExtension(file))//Поиск только файлов с расширением .dll (UPD: Unify file extensions, it should work...)
+					foreach(String file in Directory.EnumerateFiles(pluginPath, "*.*", SearchOption.AllDirectories))
+						if(FilePluginArgs.CheckFileExtension(file))
 							try
 							{
 								AssemblyName name = AssemblyName.GetAssemblyName(file);
 								if(name.FullName == targetName.FullName)
 									return Assembly.LoadFile(file);
-								//return assembly;//TODO: Reference DLL из оперативной памяти не цепляются!
+								//return assembly;//TODO: Reference DLLs are not loaded from RAM!
 							} catch(BadImageFormatException)
 							{
 								continue;
@@ -112,7 +107,6 @@ namespace Plugin.FileContextPluginProvider
 			IPluginProvider parentProvider = ((IPluginProvider)this).ParentProvider;
 			return parentProvider?.ResolveAssembly(assemblyName);
 		}
-		#endregion IPluginProvider
 
 		/// <summary>New file for check is available</summary>
 		/// <param name="sender">Message sender</param>
@@ -122,8 +116,8 @@ namespace Plugin.FileContextPluginProvider
 			if(e.ChangeType == WatcherChangeTypes.Changed)
 			{
 				AssemblyTypesInfo info;
-				using(AssemblyAnalyzer2 analyzer = new AssemblyAnalyzer2(e.FullPath))
-					info = analyzer.CheckAssembly();
+				using(AssemblyAnalyzer2 analyzer = new AssemblyAnalyzer2(Path.GetDirectoryName(e.FullPath)))
+					info = analyzer.CheckAssembly(e.FullPath);
 				if(info != null)
 					this.LoadAssembly(info, ConnectMode.AfterStartup);
 			}
@@ -141,8 +135,8 @@ namespace Plugin.FileContextPluginProvider
 				if(info.Types.Length == 0)
 					throw new InvalidOperationException("Types is empty");
 
-				// Проверяем что плагин с таким источником ещё не загружен, если его уже загрузил родительский провайдер.
-				// Загрузка из ФС так что источник должен быть по любому уникальный.
+				// Check that the plugin with this source hasn't yet been loaded if it's already loaded by the parent provider.
+				// Loading from the file system, so the source must be unique.
 				foreach(IPluginDescription plugin in this.Host.Plugins)
 					if(info.AssemblyPath.Equals(plugin.Source, StringComparison.InvariantCultureIgnoreCase))
 						return;
@@ -151,11 +145,10 @@ namespace Plugin.FileContextPluginProvider
 				foreach(String type in info.Types)
 					this.Host.Plugins.LoadPlugin(assembly, type, info.AssemblyPath, mode);
 
-			} catch(BadImageFormatException exc)//Ошибка загрузки плагина. Можно почитать заголовок загружаемого файла, но мне влом
+			} catch(BadImageFormatException exc)//Plugin loading error. I could read the title of the file being loaded, but I'm too lazy.
 			{
 				exc.Data.Add("Library", info.AssemblyPath);
 				this.Trace.TraceData(TraceEventType.Error, 1, exc);
-				return;
 			} catch(Exception exc)
 			{
 				exc.Data.Add("Library", info.AssemblyPath);
