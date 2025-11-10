@@ -51,19 +51,31 @@ namespace Plugin.FileContextPluginProvider
 
 		void IPluginProvider.LoadPlugins()
 		{
-			//System.Diagnostics.Debugger.Launch();
 			foreach(String pluginPath in this.Args.PluginPath)
 				if(Directory.Exists(pluginPath))
 				{
-					AssemblyTypesInfo[] infos;
-					//var loadContext1 = AssemblyLoadContext.GetLoadContext(AppDomain.CurrentDomain.GetAssemblies()[0]);*/
-					Int32 asmCount1 = AppDomain.CurrentDomain.GetAssemblies().Length;
-					using(AssemblyAnalyzer2 analyzer2 = new AssemblyAnalyzer2(pluginPath))
-						infos = analyzer2.CheckAssemblies();
-					Int32 asmCount2 = AppDomain.CurrentDomain.GetAssemblies().Length;
+					AssemblyTypesInfo[] foundAssemblies;
+					using(IsolatedLoadContext context = new IsolatedLoadContext(pluginPath))
+					{
+						foundAssemblies = context.CheckAssemblies();
 
-					foreach(AssemblyTypesInfo info in infos)
-						this.LoadAssembly(info, ConnectMode.Startup);
+						foreach(AssemblyTypesInfo info in foundAssemblies)
+						{
+							this.LoadAssembly(info, ConnectMode.Startup);
+
+							// Previous assembly was already loaded with error. Trying to load its referenced assemblies again.
+							if(info.ReferencedAssemblyPath != null && info.Error != null)
+							{
+								var sourceReference = Array.Find(foundAssemblies, a => a.AssemblyPath == info.ReferencedAssemblyPath);
+								if(sourceReference != null && sourceReference.Error != null)
+								{
+									AssemblyTypesInfo newInfo = context.CheckAssembly(info.AssemblyPath);
+									if(newInfo != null)
+										this.LoadAssembly(newInfo, ConnectMode.Startup);
+								}
+							}
+						}
+					}
 
 					foreach(String extension in FilePluginArgs.LibraryExtensions)
 					{
@@ -93,10 +105,10 @@ namespace Plugin.FileContextPluginProvider
 								//return assembly;//TODO: Reference DLLs are not loaded from RAM!
 							} catch(BadImageFormatException)
 							{
-								continue;
+								// Unsupported binary format (not .NET assembly)
 							} catch(FileLoadException)
 							{
-								continue;
+								// Some generic file load error
 							} catch(Exception exc)
 							{
 								exc.Data.Add("Library", file);
@@ -116,7 +128,7 @@ namespace Plugin.FileContextPluginProvider
 			if(e.ChangeType == WatcherChangeTypes.Changed)
 			{
 				AssemblyTypesInfo info;
-				using(AssemblyAnalyzer2 analyzer = new AssemblyAnalyzer2(Path.GetDirectoryName(e.FullPath)))
+				using(IsolatedLoadContext analyzer = new IsolatedLoadContext(Path.GetDirectoryName(e.FullPath)))
 					info = analyzer.CheckAssembly(e.FullPath);
 				if(info != null)
 					this.LoadAssembly(info, ConnectMode.AfterStartup);

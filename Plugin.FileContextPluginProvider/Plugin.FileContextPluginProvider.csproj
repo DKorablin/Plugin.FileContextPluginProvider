@@ -31,19 +31,20 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<AssemblyAttributes Include="AssemblyMetadata" Condition="'$(TargetFramework)'=='net8.0'">
+		<PackageReference Include="SAL.Flatbed">
+			<ExcludeAssets>runtime</ExcludeAssets>
+		</PackageReference>
+		<Reference Include="System.Configuration" Condition="'$(TargetFramework)' == 'net35'" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)'=='net8.0'">
+		<PackageReference Include="System.Configuration.ConfigurationManager" />
+		<PackageReference Include="Microsoft.Extensions.DependencyModel"/>
+		<AssemblyAttributes Include="AssemblyMetadata">
 			<_Parameter1>ProjectUrl</_Parameter1>
 			<_Parameter2>https://github.com/DKorablin/Plugin.FileContextPluginProvider</_Parameter2>
 		</AssemblyAttributes>
 	</ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="SAL.Flatbed">
-			<ExcludeAssets>runtime</ExcludeAssets>
-		</PackageReference>
-		<PackageReference Include="System.Configuration.ConfigurationManager" Condition="'$(TargetFramework)'=='net8.0'" />
-		<Reference Include="System.Configuration" Condition="'$(TargetFramework)' == 'net35'" />
-	</ItemGroup>
 	<ItemGroup>
 		<Compile Include="..\PluginProviders.Shared\FilePluginArgs.cs">
 			<Link>FilePluginArgs.cs</Link>

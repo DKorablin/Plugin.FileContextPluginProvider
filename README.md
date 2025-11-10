@@ -1,7 +1,6 @@
 # Plugin.FileContextPluginProvider
 
 [![Auto build](https://github.com/DKorablin/Plugin.FileContextPluginProvider/actions/workflows/release.yml/badge.svg)](https://github.com/DKorablin/Plugin.FileContextPluginProvider/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A robust plugin loader for the SAL (Software Abstraction Layer) framework that provides secure plugin discovery and loading using isolated AssemblyLoadContext instances.
 
