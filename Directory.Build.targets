@@ -26,6 +26,9 @@
 				<_Parameter1>false</_Parameter1>
 				<_Parameter1_TypeName>System.Boolean</_Parameter1_TypeName>
 			</AssemblyAttributes>
+			<AssemblyAttributes Include="AssemblyCopyright">
+				<_Parameter1>Copyright © Danila Korablin 2009-$([System.DateTime]::Now.Year)</_Parameter1>
+			</AssemblyAttributes>
 		</ItemGroup>
 		<MakeDir Directories="$(IntermediateOutputPath)" />
 		<WriteCodeFragment Language="C#" OutputFile="$(IntermediateOutputPath)Version.cs" AssemblyAttributes="@(AssemblyAttributes)" />
