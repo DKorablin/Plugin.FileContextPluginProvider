@@ -131,7 +131,7 @@ jobs:
         /p:EnablePackageValidation=true
         /p:SymbolPackageFormat=snupkg
     - name: Deploying package to GitHub
-      run: dotnet nuget push ${{github.workspace}}\nupkg\ --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
+      run: dotnet nuget push ${{github.workspace}}\nupkg\*.nupkg --skip-duplicate --api-key ${{secrets.GITHUB_TOKEN}} --source https://nuget.pkg.github.com/DKorablin/index.json
     - name: Package Release Artifacts
       run: |
         .\.github\scripts\Build-ReleasePackage.ps1 `
