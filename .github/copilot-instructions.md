@@ -1,4 +1,4 @@
-# Code Style Mandates (Synchronized with .editorconfig)
+﻿# Code Style Mandates (Synchronized with .editorconfig)
 
 Always adhere to these specific C# styles derived from our project configuration:
 
