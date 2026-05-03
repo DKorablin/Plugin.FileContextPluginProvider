@@ -5,7 +5,7 @@
 
 A robust plugin loader for the SAL (Software Abstraction Layer) framework that provides secure plugin discovery and loading using isolated AssemblyLoadContext instances.
 
-## 🚀 Features
+## Features
 
 - **Isolated Assembly Loading**: Each plugin is analyzed in a separate `AssemblyLoadContext` to prevent conflicts and ensure sandbox security
 - **Parallel Processing**: Uses TPL (Task Parallel Library) for efficient concurrent plugin scanning
@@ -15,7 +15,7 @@ A robust plugin loader for the SAL (Software Abstraction Layer) framework that p
 - **Memory Efficient**: Uses `Directory.EnumerateFiles` for deferred execution when scanning directories
 - **Flexible Configuration**: Supports multiple plugin paths via configuration or command-line arguments
 
-## 📦 Installation
+## Installation
 
 To install the File Context Plugin Provider Plugin, follow these steps:
 1. Download the latest release from the [Releases](https://github.com/DKorablin/Plugin.FileContextPluginProvider/releases)
@@ -26,12 +26,12 @@ To install the File Context Plugin Provider Plugin, follow these steps:
 	- [Flatbed.MDI (WPF)](https://dkorablin.github.io/Flatbed-MDI-Avalon)
 	- [Flatbed.WorkerService](https://dkorablin.github.io/Flatbed-WorkerService)
 
-## 🔧 Requirements
+## Requirements
 
 - **.NET 8.0** or higher
 - **SAL.Flatbed** host application
 
-## 📖 Usage
+## Usage
 
 ### Basic Configuration
 
@@ -39,9 +39,9 @@ Configure plugin paths via application configuration:
 
 ```xml
 <configuration>
-  <appSettings>
-	<add key="SAL_Path" value="C:\Plugins|C:\MorePlugins" />
-  </appSettings>
+	<appSettings>
+		<add key="SAL_Path" value="C:\Plugins|C:\MorePlugins" />
+	</appSettings>
 </configuration>
 ```
 
@@ -68,7 +68,7 @@ var pluginProvider = new Plugin(host);
 ((IPluginProvider)pluginProvider).LoadPlugins();
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### Core Components
 
@@ -117,7 +117,7 @@ private AssemblyTypesInfo CheckAssemblyInIsolation(String filePath)
 3. **Clean Unloading**: Contexts can be unloaded after analysis, freeing memory
 4. **Thread Safety**: No shared state between concurrent analysis operations
 
-## 🔍 How It Works
+## How It Works
 
 1. **Discovery Phase**:
 	- Scans configured directories for `.dll` files
@@ -139,7 +139,7 @@ private AssemblyTypesInfo CheckAssemblyInIsolation(String filePath)
 	- Detects new `.dll` files added after startup
 	- Automatically analyzes and loads new plugins
 
-## 🛡️ Error Handling
+## Error Handling
 
 The provider handles various error scenarios:
 
@@ -148,7 +148,7 @@ The provider handles various error scenarios:
 - **ReflectionTypeLoadException**: Captures and reports loader errors
 - **General Exceptions**: Logged with context for troubleshooting
 
-## 🔄 Plugin Lifecycle
+## Plugin Lifecycle
 
 ```
 Startup → Discovery → Analysis → Validation → Loading → Monitoring → Shutdown
@@ -158,15 +158,15 @@ Startup → Discovery → Analysis → Validation → Loading → Monitoring →
           Unloaded                                New Plugin Detection
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 🔗 Related Projects
+## Related Projects
 
 - [SAL.Flatbed](https://github.com/DKorablin/SAL.Flatbed) - Software Abstraction Layer framework
 
-## 📝 Version History
+## Version History
 
 See [Releases](https://github.com/DKorablin/Plugin.FileContextPluginProvider/releases) for version history and changes.
 
