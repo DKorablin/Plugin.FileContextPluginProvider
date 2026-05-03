@@ -2,7 +2,7 @@ name: Test, Build
 
 on:
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master", "main" ]
   workflow_dispatch:
     inputs:
       dotNetVersion:
@@ -39,7 +39,9 @@ jobs:
     - name: Restoring dependencies
       run: dotnet restore ${{env.SolutionName}}.sln
     - name: Testing .NET
-      run: dotnet test ${{env.SolutionName}}.sln --no-build --verbosity normal
+      run: >
+        dotnet test ${{env.SolutionName}}.sln --framework net8.0-windows --no-restore --verbosity normal
+        /p:GenerateDocumentationFile=true
 
   build:
     name: Build
@@ -68,3 +70,7 @@ jobs:
         /p:Configuration=Release
         /p:GenerateDocumentationFile=true
         /p:SignAssembly=false
+    - name: Listing release directory
+      run: |
+        echo "Listing files in the release directory:"
+        ls ${{env.ArtifactsDir}} -Recurse

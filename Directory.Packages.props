@@ -3,7 +3,7 @@
 		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageVersion Include="SAL.Flatbed" Version="1.2.11">
+		<PackageVersion Include="SAL.Flatbed" Version="1.2.12">
 			<ExcludeAssets>runtime</ExcludeAssets>
 		</PackageVersion>
 		<PackageVersion Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
