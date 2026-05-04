@@ -1,4 +1,4 @@
-# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
+﻿# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
 #
 # Workflow Steps:
 # 1. Test: Runs all unit tests for the solution.
@@ -67,7 +67,7 @@ jobs:
     steps:
     - name: Decoding strong-name key
       id: sign_key_file
-      uses: timheuer/base64-to-file@v1.2
+      uses: timheuer/base64-to-file@v2
       with:
         fileName: 'Signature.snk'
         encodedString: ${{secrets.SIGN_ASM_KEY}}
