@@ -1,4 +1,4 @@
-name: Test, Build
+﻿name: Test, Build
 
 on:
   pull_request:
@@ -21,19 +21,19 @@ jobs:
     name: Testing .NET (Windows)
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
     - name: Caching NuGet packages
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('/Directory.Packages.props', '/nuget.config') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{env.DotNetVersion}}
     - name: Restoring dependencies
@@ -48,19 +48,19 @@ jobs:
     needs: [test]
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
     - name: Caching NuGet packages
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
     - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+      uses: microsoft/setup-msbuild@v3
     - name: Restore
       run: msbuild ${{env.SolutionName}}.sln /t:Restore
     - name: Building multi-target project

@@ -12,7 +12,6 @@ Always adhere to these specific C# styles derived from our project configuration
 
 - **Logic:** Favor ternary operators (`? :`) over standard `if-else` assignments or return statements.
 - **Namespaces:** Place all `using` directives **outside** of the namespace declaration.
-- **Variables:** Avoid the `var` keyword; explicitly state the type using BCL names.
 
 - **Documentation**
 - Do not expand summary blocks beyond one line.
