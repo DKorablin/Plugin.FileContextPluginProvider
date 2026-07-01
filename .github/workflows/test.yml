@@ -1,4 +1,4 @@
-﻿name: Test, Build
+name: Test, Build
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ jobs:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
     - name: Caching NuGet packages
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('/Directory.Packages.props', '/nuget.config') }}
@@ -53,7 +53,7 @@ jobs:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
     - name: Caching NuGet packages
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}

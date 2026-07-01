@@ -1,4 +1,4 @@
-﻿# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
+# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
 #
 # Workflow Steps:
 # 1. Test: Runs all unit tests for the solution.
@@ -78,7 +78,7 @@ jobs:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
     - name: Caching NuGet packages
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('/Directory.Packages.props', '/nuget.config') }}
