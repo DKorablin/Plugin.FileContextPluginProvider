@@ -1,4 +1,4 @@
-﻿name: Test, Build
+name: Test, Build
 
 on:
   pull_request:
@@ -21,7 +21,7 @@ jobs:
     name: Testing .NET (Windows)
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
@@ -48,7 +48,7 @@ jobs:
     needs: [test]
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true

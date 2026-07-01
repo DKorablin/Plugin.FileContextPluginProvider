@@ -1,4 +1,4 @@
-﻿# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
+# This GitHub Actions workflow automates the CI/CD process for all SAL plugins.
 #
 # Workflow Steps:
 # 1. Test: Runs all unit tests for the solution.
@@ -73,7 +73,7 @@ jobs:
       with:
         fileName: 'Signature.snk'
         encodedString: ${{secrets.SIGN_ASM_KEY}}
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
@@ -157,7 +157,7 @@ jobs:
     if: always() && needs.build_net.result != 'success'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: false
