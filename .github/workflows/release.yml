@@ -73,12 +73,12 @@ jobs:
       with:
         fileName: 'Signature.snk'
         encodedString: ${{secrets.SIGN_ASM_KEY}}
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: true
     - name: Caching NuGet packages
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('/Directory.Packages.props', '/nuget.config') }}
@@ -157,7 +157,7 @@ jobs:
     if: always() && needs.build_net.result != 'success'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         token: ${{secrets.SUBMODULE_TOKEN}}
         submodules: false
