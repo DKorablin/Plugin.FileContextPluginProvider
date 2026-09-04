@@ -33,7 +33,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{env.DotNetVersion}}
     - name: Restoring dependencies
