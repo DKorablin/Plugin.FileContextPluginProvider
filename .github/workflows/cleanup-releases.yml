@@ -1,0 +1,64 @@
+name: Cleanup Old Releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      keepCount:
+        description: 'Number of most recent releases to keep'
+        required: false
+        default: '5'
+      deleteTags:
+        description: 'Also delete the git tags for removed releases'
+        required: false
+        type: boolean
+        default: true
+      dryRun:
+        description: 'List releases that would be deleted without deleting them'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Delete old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_COUNT: ${{ github.event.inputs.keepCount }}
+          DELETE_TAGS: ${{ github.event.inputs.deleteTags }}
+          DRY_RUN: ${{ github.event.inputs.dryRun }}
+        run: |
+          mapfile -t ALL_RELEASES < <(gh release list --limit 1000 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[].tagName')
+          TOTAL=${#ALL_RELEASES[@]}
+          echo "Found $TOTAL release(s); keeping the $KEEP_COUNT most recent."
+
+          if (( TOTAL <= KEEP_COUNT )); then
+            echo "Nothing to delete."
+            exit 0
+          fi
+
+          TO_DELETE=("${ALL_RELEASES[@]:KEEP_COUNT}")
+          echo "Releases to delete (${#TO_DELETE[@]}):"
+          printf '  %s\n' "${TO_DELETE[@]}"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run enabled; not deleting anything."
+            exit 0
+          fi
+
+          DELETE_FLAG=""
+          if [ "$DELETE_TAGS" = "true" ]; then
+            DELETE_FLAG="--cleanup-tag"
+          fi
+
+          for TAG in "${TO_DELETE[@]}"; do
+            echo "Deleting release $TAG..."
+            gh release delete "$TAG" --yes $DELETE_FLAG
+          done
